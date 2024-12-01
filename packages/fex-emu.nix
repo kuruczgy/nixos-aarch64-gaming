@@ -14,6 +14,7 @@ clangStdEnv.mkDerivation {
     owner = "FEX-Emu";
     rev = "22058c06a1f3585f66ed71765c9b6b652bdd66cc";
     hash = "sha256-Spn75tiYJmweZNbaYeR6u/omjMPyC2nBuz8SIQCZGGE=";
+    # TODO: only selectively fetch some, as some contain prebuilt binaries
     fetchSubmodules = true;
   };
   patches = [ ./fex-emu-fixes.patch ];
@@ -28,6 +29,7 @@ clangStdEnv.mkDerivation {
       setuptools
     ]))
   ];
+  dontWrapQtApps = true;
   buildInputs = with pkgs; [
     openssl
     qt5.qtbase

@@ -12,39 +12,19 @@ index 00d18d319..c5283d5e9 100644
    // If it does then it takes priority over the installed one
    if (!std::filesystem::exists(FEXInterpreterPath)) {
 diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp
-index bcb92096a..665e14e73 100644
+index bcb92096a..35ae4196b 100644
 --- a/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp
 +++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp
-@@ -166,9 +166,9 @@ static bool IsShebangFile(std::span<char> Data) {
+@@ -164,12 +164,6 @@ static bool IsShebangFile(std::span<char> Data) {
+     // Executable argument
+     fextl::string& ShebangProgram = ShebangArguments[0];
  
-     // If the filename is absolute then prepend the rootfs
-     // If it is relative then don't append the rootfs
+-    // If the filename is absolute then prepend the rootfs
+-    // If it is relative then don't append the rootfs
 -    if (ShebangProgram[0] == '/') {
 -      ShebangProgram = FEX::HLE::_SyscallHandler->RootFSPath() + ShebangProgram;
 -    }
-+    // if (ShebangProgram[0] == '/') {
-+    //   ShebangProgram = FEX::HLE::_SyscallHandler->RootFSPath() + ShebangProgram;
-+    // }
- 
+-
      return FHU::Filesystem::Exists(ShebangProgram);
    }
-@@ -699,7 +699,8 @@ uint64_t SyscallHandler::HandleBRK(FEXCore::Core::CpuStateFrame* Frame, void* Ad
  
-         uint64_t RemainingSize = DataSpaceMaxSize - NewSizeAligned;
-         // We have pages we can unmap
--        [[maybe_unused]] auto ok = GuestMunmap(Frame->Thread, reinterpret_cast<void*>(DataSpace + NewSizeAligned), RemainingSize);
-+        [[maybe_unused]]
-+        auto ok = GuestMunmap(Frame->Thread, reinterpret_cast<void*>(DataSpace + NewSizeAligned), RemainingSize);
-         LOGMAN_THROW_A_FMT(ok != -1, "Munmap failed");
- 
-         DataSpaceMaxSize = NewSizeAligned;
-@@ -719,7 +720,8 @@ uint64_t SyscallHandler::HandleBRK(FEXCore::Core::CpuStateFrame* Frame, void* Ad
-         if (NewBRK != ~0ULL && NewBRK != (DataSpace + DataSpaceMaxSize)) {
-           // Couldn't allocate that the region we wanted
-           // Can happen if MAP_FIXED_NOREPLACE isn't understood by the kernel
--          [[maybe_unused]] int ok = GuestMunmap(Frame->Thread, reinterpret_cast<void*>(NewBRK), AllocateNewSize);
-+          [[maybe_unused]]
-+          int ok = GuestMunmap(Frame->Thread, reinterpret_cast<void*>(NewBRK), AllocateNewSize);
-           LOGMAN_THROW_A_FMT(ok != -1, "Munmap failed");
-           NewBRK = ~0ULL;
-         }
