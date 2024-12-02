@@ -1,40 +1,50 @@
-{ pkgs, fetchFromGitHub }:
+{ pkgs, lib, fetchFromGitHub, cmake, ninja, pkg-config, python3 }:
 
 let
+  # Based on: https://github.com/NixOS/nixpkgs/issues/24744#issuecomment-1927254475
   clangStdEnv = pkgs.stdenvAdapters.overrideCC pkgs.llvmPackages.stdenv (
     pkgs.llvmPackages.clang.override {
       bintools = pkgs.llvmPackages.bintools;
     }
   );
 in
-clangStdEnv.mkDerivation {
-  name = "fex-emu";
+clangStdEnv.mkDerivation rec {
+  pname = "fex-emu";
+  version = "2410";
   src = fetchFromGitHub {
     repo = "FEX";
     owner = "FEX-Emu";
-    rev = "22058c06a1f3585f66ed71765c9b6b652bdd66cc";
-    hash = "sha256-Spn75tiYJmweZNbaYeR6u/omjMPyC2nBuz8SIQCZGGE=";
-    # TODO: only selectively fetch some, as some contain prebuilt binaries
-    fetchSubmodules = true;
+    rev = "FEX-${version}";
+    hash = "sha256-BIKWZL+93N/0bthusuVVMUDGLtHRS+VYNQJ6blnvfM4=";
+
+    forceFetchGit = true;
+    leaveDotGit = true;
+    postFetch = ''
+      cd $out
+      ${pkgs.git}/bin/git reset
+      ${pkgs.git}/bin/git submodule update --init --depth 1 \
+        External/Vulkan-Headers \
+        External/drm-headers \
+        External/fmt \
+        External/jemalloc \
+        External/jemalloc_glibc \
+        External/robin-map \
+        External/vixl \
+        External/xxhash \
+        Source/Common/cpp-optparse
+      find . -name .git -print0 | xargs -0 rm -rf
+    '';
   };
-  patches = [ ./fex-emu-fixes.patch ];
-  nativeBuildInputs = with pkgs; [
-    git
+  patches = [ ./fex-emu-shebang-absolute-path-fix.patch ];
+  nativeBuildInputs = [
     cmake
     ninja
     pkg-config
-    nasm
-    (python3.withPackages (ps: with ps; [
-      clang
-      setuptools
-    ]))
+    (python3.withPackages (ps: [ ps.setuptools ]))
   ];
-  dontWrapQtApps = true;
-  buildInputs = with pkgs; [
-    openssl
-    qt5.qtbase
-    qt5.qtdeclarative
-    qt5.qtquickcontrols
-    qt5.qtquickcontrols2
+  cmakeFlags = [
+    (lib.cmakeFeature "OVERRIDE_VERSION" version)
+    (lib.cmakeBool "BUILD_FEXCONFIG" false)
+    (lib.cmakeBool "BUILD_TESTS" false)
   ];
 }

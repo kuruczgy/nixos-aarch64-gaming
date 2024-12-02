@@ -13,76 +13,54 @@
         overlays = [
           (final: prev: {
             steam = prev.steam.override {
-              extraPkgs = pkgs: with pkgs; [
-                glxinfo
-                vulkan-tools
-                binutils
-              ];
               extraPreBwrapCmds = ''
                 ignored+=(/run)
               '';
-              extraBwrapArgs =
-                # let
-                #   runtime-dir-overlay = final.linkFarm "runtime-dir-overlay" [
-                #     { name = "opengl-driver"; path = final.mesa.drivers; }
-                #     { name = "opengl-driver-32"; path = final.pkgsi686Linux.mesa.drivers; }
-                #   ];
-                # in
-                [
-                  "--tmpfs /run"
-                  "--bind /run/user /run/user"
-                  "--symlink ${final.mesa.drivers} /run/opengl-driver"
-                  "--symlink ${final.pkgsi686Linux.mesa.drivers} /run/opengl-driver-32"
-                  # "--overlay-src /run"
-                  # "--overlay-src ${runtime-dir-overlay}"
-                  # "--ro-overlay /run"
-                  # "--ro-bind ${prev.mesa.drivers} /run/opengl-driver"
-                  # "--symlink ${prev.pkgsi686Linux.mesa.drivers} /run/opengl-driver-32"
-                ];
+              extraBwrapArgs = [
+                "--tmpfs /run"
+                "--bind /run/user /run/user"
+                "--symlink ${final.mesa.drivers} /run/opengl-driver"
+                "--symlink ${final.pkgsi686Linux.mesa.drivers} /run/opengl-driver-32"
+              ];
             };
+
+            # The mesa derivation in nixpkgs makes some difficult-to-modify assumptions
+            # about the drivers being built, so we also have to add some unnecessary
+            # drivers to make the derivation succeed.
+            mesa = (prev.mesa.override {
+              galliumDrivers = [ "freedreno" "llvmpipe" ];
+              vulkanDrivers = [ "freedreno" "microsoft-experimental" ];
+            }).overrideAttrs (old: {
+              mesonFlags = old.mesonFlags ++ [
+                (final.lib.mesonEnable "gallium-vdpau" false)
+                (final.lib.mesonEnable "gallium-va" false)
+              ];
+            });
           })
         ];
       };
 
-      guest_pkgs = import nixpkgs {
+      pkgs = import nixpkgs {
         localSystem.system = "aarch64-linux";
         overlays = [
           (final: prev: {
             fex-emu = final.callPackage ./packages/fex-emu.nix { };
 
-            hack-link-drivers = (final.writeShellApplication {
-              name = "hack-link-drivers";
+            steam-emu = final.writeShellApplication {
+              name = "steam-emu";
               text = ''
-                rm /run/opengl-driver
-                mkdir /run/opengl-driver
-                mount --bind ${final.mesa.drivers} /run/opengl-driver
-                ln -s ${pkgs_x86.pkgsi686Linux.mesa.drivers} /run/opengl-driver-32
+                exec ${final.fex-emu}/bin/FEXInterpreter ${pkgs_x86.steam}/bin/steam -no-cef-sandbox
               '';
+            };
+
+            virglrenderer = prev.virglrenderer.overrideAttrs (old: {
+              mesonFlags = old.mesonFlags ++ [
+                (nixpkgs.lib.mesonOption "drm-renderers" "msm")
+              ];
             });
 
-            # mesa = prev.mesa.overrideAttrs (old: {
-            #   patches = old.patches ++ [
-            #     (final.fetchpatch {
-            #       url = "https://gitlab.freedesktop.org/mesa/mesa/-/commit/d71c63d7dfa9a46bbf8012bb7ad3262971d627de.patch";
-            #       hash = "sha256-F4KSy+lTsJfTizpmDNZGOGEvfUx/MLMmjUYLLhDixjs=";
-            #     })
-            #     (final.fetchpatch {
-            #       url = "https://gitlab.freedesktop.org/mesa/mesa/-/commit/2757fa4dca62ff50404611ca3d180defcdb80e32.patch";
-            #       hash = "sha256-pH7vHRNZvSYczLY3ajtxZyG6DN37gimyZi+cI0KRdeE=";
-            #     })
-            #   ];
-            # });
-          })
-        ];
-      };
-
-      host_pkgs = import nixpkgs {
-        localSystem.system = "aarch64-linux";
-        overlays = [
-          (final: prev: {
             qemu_kvm = prev.qemu_kvm.overrideAttrs {
               version = "9.1.50";
-              # version = "8.2.92";
               src = final.fetchFromGitLab {
                 domain = "gitlab.freedesktop.org";
                 repo = "qemu";
@@ -90,10 +68,6 @@
                 owner = "digetx";
                 rev = "refs/heads/native-context-v4";
                 hash = "sha256-ptC7SUFzNgkRoyOEZqf6JbSGmR/VuxYLPomVf4SRbQQ=";
-
-                # owner = "robclark";
-                # rev = "refs/heads/wip";
-                # hash = "sha256-sK5MUjROlVplUJtmV0mIn80vWLCgRNv9VHSW80UGrqY=";
 
                 forceFetchGit = true;
                 postFetch = ''
@@ -106,18 +80,13 @@
                 '';
               };
               patches = [
+                # virtio-gpu: Resource UUID
                 (final.fetchpatch {
                   url = "https://gitlab.freedesktop.org/digetx/qemu/-/commit/7d4b81f9497658f86d195569c649f306e76deb53.patch";
                   hash = "sha256-aUYr2RShclZhdmZvgDoktSr2mgXEqV47+p1w8wTOLFM=";
                 })
               ];
             };
-
-            virglrenderer = prev.virglrenderer.overrideAttrs (old: {
-              mesonFlags = old.mesonFlags ++ [
-                (nixpkgs.lib.mesonOption "drm-renderers" "msm")
-              ];
-            });
           })
         ];
       };
@@ -125,7 +94,7 @@
     {
       nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
-        pkgs = guest_pkgs;
+        inherit pkgs;
         modules = [
           home-manager.nixosModules.home-manager
           ({ pkgs, modulesPath, ... }: {
@@ -137,11 +106,8 @@
               qemu.options = [
                 "-device virtio-sound"
                 "-device virtio-gpu-gl,stats=off,blob=on,hostmem=32G,drm_native_context=on"
-                # "-device virtio-gpu-gl,stats=off,blob=on,hostmem=32G"
-                # "-display gtk,show-tabs=on,gl=on"
                 "-display sdl,gl=on"
               ];
-              qemu.package = host_pkgs.qemu_kvm;
             };
             hardware.graphics.enable = true;
             boot.kernelPackages = pkgs.linuxPackages_latest;
@@ -158,30 +124,20 @@
             programs.bash.loginShellInit = ''trap "sudo poweroff" EXIT'';
 
             environment.systemPackages = with pkgs; [
+              # TODO: pin the volume to 100% somehow?
+              pavucontrol
+
+              # for testing
               vulkan-tools
               kmscube
               evtest
-              pavucontrol
               glxinfo
               firefox
               file
               binutils
 
-              # FOSS games
-              # minetest
-              # superTuxKart
-              # openttd
-              # zeroad
-              # xonotic
-
-              # fex-emu
-              fex-emu
-              squashfsTools
-
               # steam
-              pkgs_x86.steam
-              pkgs_x86.steam.run
-              hack-link-drivers
+              steam-emu
             ];
 
             # Enable sound with pipewire
