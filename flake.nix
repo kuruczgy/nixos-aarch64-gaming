@@ -2,6 +2,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
     home-manager.url = "github:nix-community/home-manager";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
   outputs = { self, nixpkgs, home-manager }:
     let
@@ -196,7 +197,7 @@
         ];
       };
       packages.aarch64-linux = {
-        inherit (self.nixosConfigurations.vm.pkgs) qemu_kvm fex-emu;
+        inherit (self.nixosConfigurations.vm.pkgs) qemu_kvm fex-emu steam-emu;
         inherit (pkgs_x86) steam lsb-release mesa;
       };
       apps.aarch64-linux = {
