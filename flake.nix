@@ -26,7 +26,7 @@
 
             # The mesa derivation in nixpkgs makes some difficult-to-modify assumptions
             # about the drivers being built, so we also have to add some unnecessary
-            # drivers to make the derivation succeed.
+            # drivers to make the derivation build successfully.
             mesa = (prev.mesa.override {
               galliumDrivers = [ "freedreno" "llvmpipe" ];
               vulkanDrivers = [ "freedreno" "microsoft-experimental" ];
@@ -34,8 +34,23 @@
               mesonFlags = old.mesonFlags ++ [
                 (final.lib.mesonEnable "gallium-vdpau" false)
                 (final.lib.mesonEnable "gallium-va" false)
+
+                # This is needed until
+                # https://github.com/NixOS/nixpkgs/pull/360572 makes it into
+                # master.
+                (final.lib.mesonOption "freedreno-kmds" "msm,kgsl,virtio,wsl")
               ];
             });
+
+            # Workaround for https://github.com/NixOS/nixpkgs/issues/360552
+            glibc_multi = prev.glibc_multi.override {
+              glibc32 = final.pkgsi686Linux.glibc;
+            };
+
+            # Workaround until https://github.com/NixOS/nixpkgs/pull/360576 is merged.
+            lsb-release = prev.lsb-release.overrideAttrs {
+              shell = final.runtimeShell;
+            };
           })
         ];
       };
@@ -50,6 +65,13 @@
               name = "steam-emu";
               text = ''
                 exec ${final.fex-emu}/bin/FEXInterpreter ${pkgs_x86.steam}/bin/steam -no-cef-sandbox
+              '';
+            };
+
+            steam-emu-run = final.writeShellApplication {
+              name = "steam-emu-run";
+              text = ''
+                exec ${final.fex-emu}/bin/FEXInterpreter ${pkgs_x86.steam.run}/bin/steam-run "$@"
               '';
             };
 
@@ -138,6 +160,7 @@
 
               # steam
               steam-emu
+              steam-emu-run
             ];
 
             # Enable sound with pipewire
