@@ -1,0 +1,17 @@
+diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp
+index bcb92096a..35ae4196b 100644
+--- a/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp
++++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/Syscalls.cpp
+@@ -164,12 +164,6 @@ static bool IsShebangFile(std::span<char> Data) {
+     // Executable argument
+     fextl::string& ShebangProgram = ShebangArguments[0];
+ 
+-    // If the filename is absolute then prepend the rootfs
+-    // If it is relative then don't append the rootfs
+-    if (ShebangProgram[0] == '/') {
+-      ShebangProgram = FEX::HLE::_SyscallHandler->RootFSPath() + ShebangProgram;
+-    }
+-
+     return FHU::Filesystem::Exists(ShebangProgram);
+   }
+ 
