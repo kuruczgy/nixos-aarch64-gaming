@@ -76,6 +76,15 @@
               '';
             };
 
+            mesa = prev.mesa.overrideAttrs (old: {
+              mesonFlags = old.mesonFlags ++ [
+                # This is needed until
+                # https://github.com/NixOS/nixpkgs/pull/360572 makes it into
+                # master.
+                (final.lib.mesonOption "freedreno-kmds" "msm,kgsl,virtio,wsl")
+              ];
+            });
+
             virglrenderer = prev.virglrenderer.overrideAttrs (old: {
               mesonFlags = old.mesonFlags ++ [
                 (nixpkgs.lib.mesonOption "drm-renderers" "msm")
