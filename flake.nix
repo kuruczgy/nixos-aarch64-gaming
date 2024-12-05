@@ -206,7 +206,7 @@
         ];
       };
       packages.aarch64-linux = {
-        inherit (self.nixosConfigurations.vm.pkgs) qemu_kvm fex-emu steam-emu;
+        inherit (self.nixosConfigurations.vm.pkgs) qemu_kvm fex-emu steam-emu steam-emu-run;
         inherit (pkgs_x86) steam lsb-release mesa;
       };
       apps.aarch64-linux = {
