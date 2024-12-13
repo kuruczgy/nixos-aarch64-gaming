@@ -6,6 +6,8 @@
   };
   outputs = { self, nixpkgs, home-manager }:
     let
+      mesa_opts_filter = builtins.filter (s: builtins.match ".*(dri-search-path|omx-libs-path|opencl-spirv).*" s == null);
+
       pkgs_x86 = import nixpkgs {
         localSystem.system = "aarch64-linux";
         crossSystem.system = "x86_64-linux";
@@ -32,7 +34,18 @@
               galliumDrivers = [ "freedreno" "llvmpipe" ];
               vulkanDrivers = [ "freedreno" "microsoft-experimental" ];
             }).overrideAttrs (old: {
-              mesonFlags = old.mesonFlags ++ [
+              version = "25.0.0-devel";
+              src = final.fetchFromGitLab {
+                domain = "gitlab.freedesktop.org";
+                owner = "mesa";
+                repo = "mesa";
+                rev = "a2339542f5d71b1c60febff78fb5dbad7ceb9191";
+                hash = "sha256-DpFpw2H7k9KztRDmTeziJEuJe0uEEOpAiYtplzm1mlw=";
+              };
+              patches = [
+                ./mesa-opencl.patch
+              ];
+              mesonFlags = mesa_opts_filter old.mesonFlags ++ [
                 (final.lib.mesonEnable "gallium-vdpau" false)
                 (final.lib.mesonEnable "gallium-va" false)
 
@@ -77,6 +90,7 @@
             };
 
             mesa = prev.mesa.overrideAttrs (old: {
+              src = throw "nope";
               mesonFlags = old.mesonFlags ++ [
                 # This is needed until
                 # https://github.com/NixOS/nixpkgs/pull/360572 makes it into

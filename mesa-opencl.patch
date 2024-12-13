@@ -1,0 +1,77 @@
+diff --git a/meson.build b/meson.build
+index 766883d84e7..bd156317486 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1861,7 +1861,7 @@ endif
+ 
+ dep_clang = null_dep
+ if with_clc or with_gallium_clover
+-  llvm_libdir = dep_llvm.get_variable(cmake : 'LLVM_LIBRARY_DIR', configtool: 'libdir')
++  llvm_libdir = get_option('clang-libdir')
+ 
+   dep_clang = cpp.find_library('clang-cpp', dirs : llvm_libdir, required : false)
+ 
+diff --git a/meson_options.txt b/meson_options.txt
+index 27a4fcff247..eed23da7471 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -29,6 +29,12 @@ option(
+   description : 'the window system EGL assumes for EGL_DEFAULT_DISPLAY',
+ )
+ 
++option(
++  'clang-libdir',
++  type : 'string',
++  value : '',
++  description : 'Locations to search for clang libraries.'
++)
+ option(
+   'android-stub',
+   type : 'boolean',
+diff --git a/src/compiler/clc/meson.build b/src/compiler/clc/meson.build
+index 74767d08de2..811cf472f55 100644
+--- a/src/compiler/clc/meson.build
++++ b/src/compiler/clc/meson.build
+@@ -116,16 +116,3 @@ idep_mesaclc = declare_dependency(
+   include_directories : include_directories('.'),
+   link_args : _idep_mesaclc_link_args,
+ )
+-
+-prog_mesa_clc = executable(
+-  'mesa_clc',
+-  ['mesa_clc.c'],
+-  include_directories : [inc_include, inc_src],
+-  c_args : [pre_args, no_override_init_args],
+-  link_args : [ld_args_build_id],
+-  dependencies : [idep_mesaclc, dep_llvm, dep_spirv_tools, idep_getopt],
+-  # If we can run host binaries directly, just build mesa_clc for the host.
+-  # Most commonly this happens when doing a cross compile from an x86_64 build
+-  # machine to an x86 host
+-  native : not meson.can_run_host_binaries(),
+-)
+diff --git a/src/gallium/targets/opencl/meson.build b/src/gallium/targets/opencl/meson.build
+index ab2c83556a8..a59e88e122f 100644
+--- a/src/gallium/targets/opencl/meson.build
++++ b/src/gallium/targets/opencl/meson.build
+@@ -56,7 +56,7 @@ if with_opencl_icd
+     configuration : _config,
+     input : 'mesa.icd.in',
+     output : 'mesa.icd',
+-    install : true,
++    install : false,
+     install_tag : 'runtime',
+     install_dir : join_paths(get_option('sysconfdir'), 'OpenCL', 'vendors'),
+   )
+diff --git a/src/gallium/targets/rusticl/meson.build b/src/gallium/targets/rusticl/meson.build
+index 2b214adbbf5..7f919397ad5 100644
+--- a/src/gallium/targets/rusticl/meson.build
++++ b/src/gallium/targets/rusticl/meson.build
+@@ -64,7 +64,7 @@ configure_file(
+   configuration : _config,
+   input : 'rusticl.icd.in',
+   output : 'rusticl.icd',
+-  install : true,
++  install : false,
+   install_tag : 'runtime',
+   install_dir : join_paths(get_option('sysconfdir'), 'OpenCL', 'vendors'),
+ )
