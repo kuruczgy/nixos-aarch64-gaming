@@ -10,12 +10,12 @@ let
 in
 clangStdEnv.mkDerivation rec {
   pname = "fex-emu";
-  version = "2410";
+  version = "2412";
   src = fetchFromGitHub {
     repo = "FEX";
     owner = "FEX-Emu";
     rev = "FEX-${version}";
-    hash = "sha256-BIKWZL+93N/0bthusuVVMUDGLtHRS+VYNQJ6blnvfM4=";
+    hash = "sha256-l+I205EPpdbWrFhM7ZozmBVkMq6IjTjQkbKvSQrw554=";
 
     forceFetchGit = true;
     leaveDotGit = true;
